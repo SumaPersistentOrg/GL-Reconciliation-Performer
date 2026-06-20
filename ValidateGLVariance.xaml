@@ -1,0 +1,90 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="ValidateGLVariance" xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:mva="clr-namespace:Microsoft.VisualBasic.Activities;assembly=System.Activities" xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation" xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation" xmlns:scg="clr-namespace:System.Collections.Generic;assembly=mscorlib" xmlns:ui="http://schemas.uipath.com/workflow/activities" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_TransactionItem" Type="InArgument(ui:QueueItem)" />
+  </x:Members>
+  <mva:VisualBasic.Settings>
+    <x:Null />
+  </mva:VisualBasic.Settings>
+  <sap:VirtualizedContainerService.HintSize>600,500</sap:VirtualizedContainerService.HintSize>
+  <sap2010:WorkflowViewState.IdRef>ValidateGLVariance_1</sap2010:WorkflowViewState.IdRef>
+  <TextExpression.NamespacesForImplementation>
+    <scg:List x:TypeArguments="x:String" Capacity="10">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>UiPath.Core</x:String>
+      <x:String>UiPath.Core.Activities</x:String>
+    </scg:List>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <scg:List x:TypeArguments="AssemblyReference" Capacity="10">
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </scg:List>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="Validate GL Variance" sap:VirtualizedContainerService.HintSize="580,460" sap2010:WorkflowViewState.IdRef="Sequence_1">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="glAccount" />
+      <Variable x:TypeArguments="x:Decimal" Name="amount" />
+      <Variable x:TypeArguments="x:Decimal" Name="varianceThreshold" />
+      <Variable x:TypeArguments="scg:Dictionary(x:String, x:Decimal)" Name="glVarianceThresholds" />
+    </Sequence.Variables>
+    <sap:WorkflowViewStateService.ViewState>
+      <scg:Dictionary x:TypeArguments="x:String, x:Object">
+        <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+      </scg:Dictionary>
+    </sap:WorkflowViewStateService.ViewState>
+
+    <!-- Step 1: Extract GL account and amount from queue item -->
+    <Assign DisplayName="Get GLAccount" sap2010:WorkflowViewState.IdRef="Assign_1">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:String">[glAccount]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[If(in_TransactionItem.SpecificContent("GLAccount") IsNot Nothing, in_TransactionItem.SpecificContent("GLAccount").ToString, "")]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <Assign DisplayName="Get Amount" sap2010:WorkflowViewState.IdRef="Assign_2">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:Decimal">[amount]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:Decimal">[CDec(in_TransactionItem.SpecificContent("Amount").ToString)]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <!-- Step 2: Build GL variance thresholds dictionary -->
+    <!-- BUG: Only specific GL accounts are registered. Unlisted accounts return 0D from FirstOrDefault() -->
+    <Assign DisplayName="Build GL Variance Thresholds" sap2010:WorkflowViewState.IdRef="Assign_3">
+      <Assign.To>
+        <OutArgument x:TypeArguments="scg:Dictionary(x:String, x:Decimal)">[glVarianceThresholds]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="scg:Dictionary(x:String, x:Decimal)">[New Dictionary(Of String, Decimal) From {{"100000", 1000D}, {"200000", 5000D}, {"300000", 2500D}}]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <!-- Step 3: LINQ lookup — BUG: StringComparison.OrdinalIgnoreCase not valid in VB LINQ Where overload -->
+    <!-- FirstOrDefault() returns 0D when GL account not found, so varianceThreshold = 0D -->
+    <Assign DisplayName="LINQ Lookup Variance Threshold" sap2010:WorkflowViewState.IdRef="Assign_4">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:Decimal">[varianceThreshold]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:Decimal">[glVarianceThresholds.Where(Function(kv) kv.Key.Equals(glAccount, StringComparison.OrdinalIgnoreCase)).Select(Function(kv) kv.Value).FirstOrDefault()]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <!-- Step 4: Check variance threshold — always fails when varianceThreshold = 0D -->
+    <If Condition="[amount > varianceThreshold]" DisplayName="Exceeds Variance Threshold?" sap2010:WorkflowViewState.IdRef="If_1">
+      <If.Then>
+        <Throw DisplayName="Throw BusinessRuleException" sap2010:WorkflowViewState.IdRef="Throw_1"
+               Exception="[New BusinessRuleException(&quot;[GL Reconciliation] GL variance threshold exceeded for account &quot; + glAccount + &quot; | CostCenter: &quot; + If(in_TransactionItem.SpecificContent(&quot;CostCenter&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;CostCenter&quot;).ToString, &quot;N/A&quot;) + &quot; | Amount: $&quot; + amount.ToString(&quot;F2&quot;) + &quot; | Variance threshold: $&quot; + varianceThreshold.ToString(&quot;F2&quot;) + &quot; | Note: GL account may not be registered in the variance thresholds configuration — please review or escalate to Finance team for manual reconciliation.&quot;)]" />
+      </If.Then>
+    </If>
+
+  </Sequence>
+</Activity>

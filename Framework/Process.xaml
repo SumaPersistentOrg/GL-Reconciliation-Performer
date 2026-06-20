@@ -101,8 +101,12 @@
                   <x:Boolean x:Key="IsExpanded">True</x:Boolean>
                 </scg:Dictionary>
               </sap:WorkflowViewStateService.ViewState>
-              <ui:LogMessage DisplayName="Log System Error Details" sap:VirtualizedContainerService.HintSize="420,96" sap2010:WorkflowViewState.IdRef="LogMessage_Sys" Level="Error" Message="[&quot;[GL Reconciliation] System error on account &quot; + If(in_TransactionItem.SpecificContent(&quot;GLAccount&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;GLAccount&quot;).ToString, &quot;UNKNOWN&quot;) + &quot; | &quot; + in_ErrorMessage]" />
-              <Throw Exception="[new SystemException(&quot;[GL Reconciliation] Failed to process GL account &quot; + If(in_TransactionItem.SpecificContent(&quot;GLAccount&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;GLAccount&quot;).ToString, &quot;UNKNOWN&quot;) + &quot;. &quot; + in_ErrorMessage)]" sap:VirtualizedContainerService.HintSize="420,25.3333333333333" sap2010:WorkflowViewState.IdRef="Throw_1" />
+              <ui:LogMessage DisplayName="Log: Invoking reconciliation" sap:VirtualizedContainerService.HintSize="420,96" sap2010:WorkflowViewState.IdRef="LogMessage_Sys" Level="Info" Message="[&quot;[GL Reconciliation] Reconciling account: &quot; + If(in_TransactionItem.SpecificContent(&quot;GLAccount&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;GLAccount&quot;).ToString, &quot;UNKNOWN&quot;)]" />
+              <ui:InvokeWorkflowFile DisplayName="ReconcileGLAccount" sap:VirtualizedContainerService.HintSize="420,62" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_1" WorkflowFileName="ReconcileGLAccount.xaml">
+                <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="ui:QueueItem" x:Key="in_TransactionItem">[in_TransactionItem]</InArgument>
+                </ui:InvokeWorkflowFile.Arguments>
+              </ui:InvokeWorkflowFile>
             </Sequence>
           </If.Then>
           <If.Else>
@@ -112,8 +116,12 @@
                   <x:Boolean x:Key="IsExpanded">True</x:Boolean>
                 </scg:Dictionary>
               </sap:WorkflowViewStateService.ViewState>
-              <ui:LogMessage DisplayName="Log Business Rule Violation" sap:VirtualizedContainerService.HintSize="420,96" sap2010:WorkflowViewState.IdRef="LogMessage_Biz" Level="Warn" Message="[&quot;[GL Reconciliation] Business rule violation on account &quot; + If(in_TransactionItem.SpecificContent(&quot;GLAccount&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;GLAccount&quot;).ToString, &quot;UNKNOWN&quot;) + &quot; | Expected: &quot; + If(in_TransactionItem.SpecificContent(&quot;ExpectedBalance&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;ExpectedBalance&quot;).ToString, &quot;N/A&quot;) + &quot; | Actual: &quot; + If(in_TransactionItem.SpecificContent(&quot;ActualBalance&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;ActualBalance&quot;).ToString, &quot;N/A&quot;) + &quot; | &quot; + in_ErrorMessage]" />
-              <Throw Exception="[new BusinessRuleException(&quot;[GL Reconciliation] Account &quot; + If(in_TransactionItem.SpecificContent(&quot;GLAccount&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;GLAccount&quot;).ToString, &quot;UNKNOWN&quot;) + &quot;: &quot; + in_ErrorMessage + &quot; | Expected: $&quot; + If(in_TransactionItem.SpecificContent(&quot;ExpectedBalance&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;ExpectedBalance&quot;).ToString, &quot;N/A&quot;) + &quot; | Actual: $&quot; + If(in_TransactionItem.SpecificContent(&quot;ActualBalance&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;ActualBalance&quot;).ToString, &quot;N/A&quot;))]" sap:VirtualizedContainerService.HintSize="420,25.3333333333333" sap2010:WorkflowViewState.IdRef="Throw_2" />
+              <ui:LogMessage DisplayName="Log: Invoking variance validation" sap:VirtualizedContainerService.HintSize="420,96" sap2010:WorkflowViewState.IdRef="LogMessage_Biz" Level="Info" Message="[&quot;[GL Reconciliation] Validating GL variance for account: &quot; + If(in_TransactionItem.SpecificContent(&quot;GLAccount&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;GLAccount&quot;).ToString, &quot;UNKNOWN&quot;)]" />
+              <ui:InvokeWorkflowFile DisplayName="ValidateGLVariance" sap:VirtualizedContainerService.HintSize="420,62" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_2" WorkflowFileName="ValidateGLVariance.xaml">
+                <ui:InvokeWorkflowFile.Arguments>
+                  <InArgument x:TypeArguments="ui:QueueItem" x:Key="in_TransactionItem">[in_TransactionItem]</InArgument>
+                </ui:InvokeWorkflowFile.Arguments>
+              </ui:InvokeWorkflowFile>
             </Sequence>
           </If.Else>
         </If>

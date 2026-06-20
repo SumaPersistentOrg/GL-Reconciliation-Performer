@@ -1,0 +1,65 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="ReconcileGLAccount" xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:mva="clr-namespace:Microsoft.VisualBasic.Activities;assembly=System.Activities" xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation" xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation" xmlns:scg="clr-namespace:System.Collections.Generic;assembly=mscorlib" xmlns:ui="http://schemas.uipath.com/workflow/activities" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_TransactionItem" Type="InArgument(ui:QueueItem)" />
+    <x:Property Name="out_ReconciliationTotal" Type="OutArgument(x:Int32)" />
+  </x:Members>
+  <mva:VisualBasic.Settings>
+    <x:Null />
+  </mva:VisualBasic.Settings>
+  <sap:VirtualizedContainerService.HintSize>600,400</sap:VirtualizedContainerService.HintSize>
+  <sap2010:WorkflowViewState.IdRef>ReconcileGLAccount_1</sap2010:WorkflowViewState.IdRef>
+  <TextExpression.NamespacesForImplementation>
+    <scg:List x:TypeArguments="x:String" Capacity="10">
+      <x:String>System</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>UiPath.Core</x:String>
+      <x:String>UiPath.Core.Activities</x:String>
+    </scg:List>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <scg:List x:TypeArguments="AssemblyReference" Capacity="10">
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+    </scg:List>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="Reconcile GL Account" sap:VirtualizedContainerService.HintSize="580,360" sap2010:WorkflowViewState.IdRef="Sequence_1">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="previousBalanceStr" />
+    </Sequence.Variables>
+    <sap:WorkflowViewStateService.ViewState>
+      <scg:Dictionary x:TypeArguments="x:String, x:Object">
+        <x:Boolean x:Key="IsExpanded">True</x:Boolean>
+      </scg:Dictionary>
+    </sap:WorkflowViewStateService.ViewState>
+
+    <ui:LogMessage DisplayName="Log: Starting reconciliation" sap2010:WorkflowViewState.IdRef="LogMessage_1" Level="Info"
+                   Message="[&quot;[GL Reconciliation] Reconciling account: &quot; + If(in_TransactionItem.SpecificContent(&quot;GLAccount&quot;) IsNot Nothing, in_TransactionItem.SpecificContent(&quot;GLAccount&quot;).ToString, &quot;UNKNOWN&quot;)]" />
+
+    <!-- BUG 1: PreviousBalance key does not exist in queue SpecificContent -->
+    <!-- in_TransactionItem.SpecificContent("PreviousBalance") returns Nothing -->
+    <!-- Calling .ToString on Nothing throws System.NullReferenceException -->
+    <Assign DisplayName="Get PreviousBalance (crashes — key missing)" sap2010:WorkflowViewState.IdRef="Assign_1">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:String">[previousBalanceStr]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[in_TransactionItem.SpecificContent("PreviousBalance").ToString]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+    <!-- BUG 2: Split(".") uses String literal — VB requires Char() e.g. Split(New Char(){"."c}) -->
+    <!-- This line is never reached due to BUG 1 but is the secondary fix needed -->
+    <Assign DisplayName="Calculate Reconciliation Total (secondary bug)" sap2010:WorkflowViewState.IdRef="Assign_2">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:Int32">[out_ReconciliationTotal]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:Int32">[CInt(in_TransactionItem.SpecificContent("Amount").ToString.Split("."c)(0)) + CInt(previousBalanceStr.Split("."c)(0))]</InArgument>
+      </Assign.Value>
+    </Assign>
+
+  </Sequence>
+</Activity>
